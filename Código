@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPDF</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        h1, h3, h2 {
+            color: #333;
+        }
+        #questionInput {
+            width: 80%;
+            padding: 15px;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+        }
+        #sendButton {
+            font-size: 18px;
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #sendButton:hover {
+            background-color: #45a049;
+        }
+        #output {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <center><div class="image-container">
+        <img class="header-image" src="https://governanca.cfa.org.br/wp-content/uploads/2024/07/Black-White-Minimalist-Letter-MC-Logo-2.png" alt="Header Image" />
+    </div>
+        <input id="questionInput" type="text" placeholder="Digite aqui sua pergunta" />
+        <button id="sendButton" onclick="handleQuestion()">Enviar</button>
+        <h6>ChatPDF pode cometer erros. Considere verificar informações importantes.</h6>
+    </center>
+    <div id="output"></div>
+
+    <script>
+        const API_KEY = 'sec_NPphHz0p2D9bVAPlFzLwOM5bjy9IEcEO';
+        const UPLOAD_URL = 'https://api.chatpdf.com/v1/sources/add-file';
+        const CHAT_URL = 'https://api.chatpdf.com/v1/chats/message';
+        const file_path = 'https://raw.githubusercontent.com/Thamidanjos/Base_Resolucoes_/main/Resolucoes_Unificadas%20(1)TESTE.pdf';
+        let sourceId;
+
+        async function uploadPdf() {
+            const response = await fetch(file_path);
+            if (response.ok) {
+                const blob = await response.blob();
+                const formData = new FormData();
+                formData.append('file', blob, 'Base Resoluções IA.pdf');
+
+                const uploadResponse = await fetch(UPLOAD_URL, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': API_KEY
+                    },
+                    body: formData
+                });
+                const uploadData = await uploadResponse.json();
+                sourceId = uploadData.sourceId;
+                document.getElementById('output').innerHTML = `Source ID: ${sourceId}`;
+            } else {
+                document.getElementById('output').innerHTML = 'Erro ao carregar o arquivo PDF.';
+            }
+        }
+
+        async function handleQuestion() {
+            const question = document.getElementById('questionInput').value;
+            if (question.trim() !== '' && sourceId) {
+                const payload = {
+                    sourceId: sourceId,
+                    referenceSources: true,
+                    messages: [{ 'role': 'user', 'content': question }]
+                };
+                const response = await fetch(CHAT_URL, {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': API_KEY,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                displayResponse(data.content, data.references);
+            } else if (!sourceId) {
+                document.getElementById('output').innerHTML = 'Erro: Source ID não encontrado. Tente recarregar a página.';
+            }
+        }
+
+        function displayResponse(answer, references) {
+            const outputDiv = document.getElementById('output');
+            let referencesText = '';
+            if (references && references.length > 0) {
+                referencesText = '<h4>Referências:</h4><ul>';
+                references.forEach(ref => {
+                    referencesText += `<li>Página ${ref.pageNumber}</li>`;
+                });
+                referencesText += '</ul>';
+            }
+            outputDiv.innerHTML = `
+                <h3>Resposta:</h3>
+                <p>${answer}</p>
+                ${referencesText}
+                <br>
+                <a href="${file_path}" download="Base_Resolucoes_IA.pdf">Baixar PDF</a>
+            `;
+        }
+
+        window.onload = uploadPdf;
+    </script>
+</body>
+</html>
